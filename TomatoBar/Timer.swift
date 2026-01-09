@@ -19,6 +19,7 @@ class TBTimer: ObservableObject {
     private var notificationCenter = TBNotificationCenter()
     private var finishTime: Date!
     private var timerFormatter = DateComponentsFormatter()
+    private var isTickingStarted: Bool = false
     @Published var timeLeftString: String = ""
     @Published var timer: DispatchSourceTimer?
 
@@ -157,7 +158,19 @@ class TBTimer: ObservableObject {
         DispatchQueue.main.async { [self] in
             updateTimeLeft()
             let timeLeft = finishTime.timeIntervalSince(Date())
+            
+            // 残り10秒以下になったらTickingを開始
+            if timeLeft <= 10 && timeLeft > 0 && !isTickingStarted {
+                player.startTicking()
+                isTickingStarted = true
+            }
+            
+            // タイマーが終了したらTickingを停止
             if timeLeft <= 0 {
+                if isTickingStarted {
+                    player.stopTicking()
+                    isTickingStarted = false
+                }
                 /*
                  Ticks can be missed during the machine sleep.
                  Stop the timer if it goes beyond an overrun time limit.
@@ -186,7 +199,7 @@ class TBTimer: ObservableObject {
     private func onWorkStart(context _: TBStateMachine.Context) {
         TBStatusItem.shared.setIcon(name: .work)
         player.playWindup()
-        player.startTicking()
+        isTickingStarted = false  // Ticking開始フラグをリセット
         startTimer(seconds: workIntervalLength * 60)
     }
 
@@ -234,6 +247,7 @@ class TBTimer: ObservableObject {
         }
         
         TBStatusItem.shared.setIcon(name: imgName)
+        isTickingStarted = false  // Ticking開始フラグをリセット
         startTimer(seconds: length * 60)
         
         // 開始タイプをリセット（次回は通常のworkから開始）
@@ -255,6 +269,10 @@ class TBTimer: ObservableObject {
 
     private func onIdleStart(context _: TBStateMachine.Context) {
         stopTimer()
+        if isTickingStarted {
+            player.stopTicking()
+            isTickingStarted = false
+        }
         TBStatusItem.shared.setIcon(name: .idle)
         consecutiveWorkIntervals = 0
     }
