@@ -1,4 +1,8 @@
 "IntervalsView.min" = "%d min";
+"IntervalsView.startInterval.label" = "Start with:";
+"IntervalsView.startInterval.work" = "Work interval";
+"IntervalsView.startInterval.shortRest" = "Short rest";
+"IntervalsView.startInterval.longRest" = "Long rest";
 "IntervalsView.workIntervalLength.label" = "Work interval:";
 "IntervalsView.shortRestIntervalLength.label" = "Short rest interval:";
 "IntervalsView.longRestIntervalLength.label" = "Long rest interval:";

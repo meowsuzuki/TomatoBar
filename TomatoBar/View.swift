@@ -12,6 +12,16 @@ private struct IntervalsView: View {
 
     var body: some View {
         VStack {
+            Picker(selection: $timer.startIntervalType) {
+                Text(NSLocalizedString("IntervalsView.startInterval.work", comment: "Start with work")).tag("work")
+                Text(NSLocalizedString("IntervalsView.startInterval.shortRest", comment: "Start with short rest")).tag("shortRest")
+                Text(NSLocalizedString("IntervalsView.startInterval.longRest", comment: "Start with long rest")).tag("longRest")
+            } label: {
+                Text(NSLocalizedString("IntervalsView.startInterval.label", comment: "Start interval label"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(timer.timer != nil) // タイマー実行中は変更不可
+            
             Stepper(value: $timer.workIntervalLength, in: 1 ... 60) {
                 HStack {
                     Text(NSLocalizedString("IntervalsView.workIntervalLength.label",

@@ -11,6 +11,7 @@ class TBTimer: ObservableObject {
     @AppStorage("workIntervalsInSet") var workIntervalsInSet = 4
     // This preference is "hidden"
     @AppStorage("overrunTimeLimit") var overrunTimeLimit = -60.0
+    @AppStorage("startIntervalType") var startIntervalType: String = "work" // "work", "shortRest", "longRest"
 
     private var stateMachine = TBStateMachine(state: .idle)
     public let player = TBPlayer()
@@ -44,8 +45,15 @@ class TBTimer: ObservableObject {
          *
          */
         stateMachine.addRoutes(event: .startStop, transitions: [
-            .idle => .work, .work => .idle, .rest => .idle,
+            .work => .idle, .rest => .idle,
         ])
+        // Idleから開始する場合、選択されたインターバルタイプに応じて遷移
+        stateMachine.addRoutes(event: .startStop, transitions: [.idle => .work]) { _ in
+            self.startIntervalType == "work"
+        }
+        stateMachine.addRoutes(event: .startStop, transitions: [.idle => .rest]) { _ in
+            self.startIntervalType == "shortRest" || self.startIntervalType == "longRest"
+        }
         stateMachine.addRoutes(event: .timerFired, transitions: [.work => .rest])
         stateMachine.addRoutes(event: .timerFired, transitions: [.rest => .idle]) { _ in
             self.stopAfterBreak
@@ -191,23 +199,47 @@ class TBTimer: ObservableObject {
         player.stopTicking()
     }
 
-    private func onRestStart(context _: TBStateMachine.Context) {
+    private func onRestStart(context ctx: TBStateMachine.Context) {
         var body = NSLocalizedString("TBTimer.onRestStart.short.body", comment: "Short break body")
         var length = shortRestIntervalLength
         var imgName = NSImage.Name.shortRest
-        if consecutiveWorkIntervals >= workIntervalsInSet {
+        
+        // 開始時に選択されたインターバルタイプに応じて設定
+        if startIntervalType == "longRest" {
+            // 長い休憩から開始
+            body = NSLocalizedString("TBTimer.onRestStart.long.body", comment: "Long break body")
+            length = longRestIntervalLength
+            imgName = .longRest
+            consecutiveWorkIntervals = 0
+        } else if startIntervalType == "shortRest" {
+            // 短い休憩から開始
+            length = shortRestIntervalLength
+            imgName = .shortRest
+        } else if consecutiveWorkIntervals >= workIntervalsInSet {
+            // 通常のフローで長い休憩に到達した場合
             body = NSLocalizedString("TBTimer.onRestStart.long.body", comment: "Long break body")
             length = longRestIntervalLength
             imgName = .longRest
             consecutiveWorkIntervals = 0
         }
-        notificationCenter.send(
-            title: NSLocalizedString("TBTimer.onRestStart.title", comment: "Time's up title"),
-            body: body,
-            category: .restStarted
-        )
+        
+        // タイマーが自動的に遷移した場合（workからrest）のみ通知を送る
+        // 手動でrestから開始した場合は通知を送らない
+        if ctx.fromState == .work {
+            notificationCenter.send(
+                title: NSLocalizedString("TBTimer.onRestStart.title", comment: "Time's up title"),
+                body: body,
+                category: .restStarted
+            )
+        }
+        
         TBStatusItem.shared.setIcon(name: imgName)
         startTimer(seconds: length * 60)
+        
+        // 開始タイプをリセット（次回は通常のworkから開始）
+        if startIntervalType != "work" {
+            startIntervalType = "work"
+        }
     }
 
     private func onRestFinish(context ctx: TBStateMachine.Context) {
